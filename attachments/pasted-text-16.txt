@@ -1,0 +1,25 @@
+const saveLateBtn = document.getElementById('saveLateResultBtn');
+if(saveLateBtn) {
+saveLateBtn.addEventListener('click', () => {
+const race = allRaces[currentRaceIdx];
+if (!race) return;
+race.resultOrder = document.getElementById('lateResultOrderInput').value.trim();
+const p = document.getElementById('lateResultPayoutInput').value.trim();
+race.payout = p ? Number(p) : null;
+refreshStockList();
+showToast(💾 「${race.id}」の結果を保存しました！);
+});
+}
+​function renderCurrentRace() {
+const race = allRaces[currentRaceIdx];
+if (!race) return;
+const res = analyzeRace(race);
+​const formDisp = document.getElementById('rawFormationDisplay');
+if(formDisp) formDisp.textContent = 並び: ${race.rawFormation};
+​const linesVis = document.getElementById('convertedLinesVisual');
+if(linesVis) {
+linesVis.innerHTML = res.lineSummaryList.map(l => <div class="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1"> <div class="flex justify-between text-xs font-mono font-bold"> <span class="${l.isTanki ? 'text-purple-300' : 'text-cyan-300'}">${l.label}</span> <span class="text-amber-200">[${l.members.map(m => m.convertedMark).join(' ')}]</span> </div> ${l.members.map(m =><div class="flex justify-between text-xs text-slate-300">
+<span>{m.car} ${m.name}</span>
+<span class="font-mono text-amber-300 font-bold">${m.rawMark}→{m.convertedMark}</span>
+</div>).join('')} </div> ).join('');
+}

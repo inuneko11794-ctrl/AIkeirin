@@ -1,0 +1,24 @@
+document.getElementById('raceSelector').addEventListener('change', e => { currentRaceIdx = +e.target.value; renderCurrentRace(); refreshStockList(); });
+document.getElementById('prevRaceBtn').addEventListener('click', () => { currentRaceIdx = (currentRaceIdx - 1 + allRaces.length) % allRaces.length; populateRaceSelector(); renderCurrentRace(); refreshStockList(); });
+document.getElementById('nextRaceBtn').addEventListener('click', () => { currentRaceIdx = (currentRaceIdx + 1) % allRaces.length; populateRaceSelector(); renderCurrentRace(); refreshStockList(); });
+document.getElementById('randomRaceBtn').addEventListener('click', () => { currentRaceIdx = Math.floor(Math.random() * allRaces.length); populateRaceSelector(); renderCurrentRace(); refreshStockList(); });
+​document.getElementById('calibrate70Btn').addEventListener('click', () => {
+aiModel.bias = +(Math.log(0.70 / 0.30) - [0.85, 0.82, 0.65, 0.72, 0.78].reduce((s, v, i) => s + v * aiModel.weights[i], 0)).toFixed(4);
+showToast('🎯 万車券基準を 70.0% にキャリブレーションしました！');
+renderCurrentRace();
+});
+​document.getElementById('trainAiBtn').addEventListener('click', () => {
+const labeled = allRaces.filter(r => r.payout && Number(r.payout) > 0);
+if (labeled.length < 1) { showToast('⚠️ 配当付きレースを登録すると学習できます'); return; }
+for (let ep = 0; ep < 150; ep++) {
+labeled.forEach(r => {
+const x = extractFeatures(analyzeRace(r));
+const y = Number(r.payout) >= 10000 ? 1 : 0;
+const err = predictUpset(x) - y;
+for (let i = 0; i < 5; i++) aiModel.weights[i] -= 0.05 * err * x[i];
+aiModel.bias -= 0.05 * err;
+});
+}
+renderCurrentRace();
+showToast(⚡ ${labeled.length}レースの結果からAI重みを更新しました！);
+});

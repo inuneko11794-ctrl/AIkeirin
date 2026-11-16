@@ -1,0 +1,27 @@
+​<!-- 現在選択中のレース詳細 ＆ 変換結果 -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- 左：並びと変換印 -->
+<div class="glass-box rounded-2xl p-4 space-y-3 md:col-span-1">
+<h3 class="text-xs font-bold text-cyan-300 font-mono-code">🏟️ 車番・ライン & 変換印</h3>
+<div id="rawFormationDisplay" class="text-xs font-mono-code text-slate-400 bg-slate-950 p-2 rounded-lg">並び: --</div>
+<div id="convertedLinesVisual" class="space-y-2 max-h-72 overflow-y-auto"></div>
+</div>
+​<!-- 中央＆右：四学・超次元方程式アナライザー -->
+<div class="glass-box rounded-2xl p-4 space-y-4 md:col-span-2">
+<div class="flex items-center justify-between border-b border-slate-800 pb-2">
+<h3 class="text-xs font-bold text-amber-300 font-mono-code">🔮 四学 ＆ 超次元宇宙診断</h3>
+<div id="aiUpsetProb" class="text-lg font-black font-mono-code text-rose-400">-- %</div>
+</div>
+<div id="aiVerdictText" class="text-xs font-bold text-slate-200">--</div>
+​<div class="grid grid-cols-2 gap-2 text-xs font-mono-code">
+<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+<div class="text-[10px] text-slate-400">第一・三学（算術・音楽）</div>
+<div id="dissonanceBadge" class="font-bold text-cyan-300">不協和度: --</div>
+<div id="chordDiagnosis" class="text-[11px] text-slate-300">--</div>
+</div>
+<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+<div class="text-[10px] text-slate-400">第二・四学（幾何・天文）</div>
+<div id="chaosBadge" class="font-bold text-amber-300">カオス: --</div>
+<div id="polygonDiagnosis" class="text-[11px] text-slate-300">--</div>
+</div>
+</div>

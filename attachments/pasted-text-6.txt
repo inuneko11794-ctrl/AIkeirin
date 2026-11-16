@@ -1,0 +1,29 @@
+​<!-- 登録済みレースストック一覧 -->
+<div class="space-y-1.5 pt-2">
+<div class="text-[10px] font-mono-code text-slate-400">▼ 登録済みレース一覧 (クリックで切替)</div>
+<div id="verticalRaceStockList" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto"></div>
+</div>
+</section>
+​<!-- 手動レースビルダー -->
+<section class="glass-box rounded-2xl p-4 sm:p-5 space-y-4">
+<div class="flex items-center justify-between border-b border-slate-800 pb-2">
+<h3 class="text-xs font-bold text-purple-300 font-mono-code">✍️ 1レース手動ビルダー</h3>
+<div id="builderLiveRadarBadge" class="text-[11px] font-mono-code font-bold text-slate-400">待機中</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+<div>
+<label class="block text-[10px] font-mono-code text-slate-400 mb-1">レース名 / ID</label>
+<input type="text" id="builderRaceTitle" placeholder="例: 川崎11R 決勝" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white" />
+</div>
+<div>
+<label class="block text-[10px] font-mono-code text-slate-400 mb-1">車数</label>
+<select id="builderCarCount" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono-code">
+<option value="7">7車立</option>
+<option value="9" selected>9車立</option>
+</select>
+</div>
+<div>
+<label class="block text-[10px] font-mono-code text-slate-400 mb-1">並び予想 (例: [1 5] [2] [3 4])</label>
+<input type="text" id="builderLineInput" placeholder="[1 5] [2] [3 4]" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono-code text-white" />
+</div>
+</div>

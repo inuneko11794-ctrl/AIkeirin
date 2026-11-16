@@ -1,0 +1,27 @@
+const prob = predictUpset(extractFeatures(res)) * 100;
+const meta = getUpsetJudgeMeta(prob);
+const probEl = document.getElementById('aiUpsetProb');
+const verdictEl = document.getElementById('aiVerdictText');
+if(probEl) probEl.textContent = ${prob.toFixed(1)} %;
+if(verdictEl) verdictEl.textContent = meta.headline;
+​const disBadge = document.getElementById('dissonanceBadge');
+const chordDiag = document.getElementById('chordDiagnosis');
+if(disBadge) disBadge.textContent = 不協和度: ${res.dissonance};
+if(chordDiag) chordDiag.textContent = res.dissonance > 4.1 ? '⚡ 不協和コード（波乱の響き）' : '🎵 協和コード（安定の響き）';
+​const chaosBadge = document.getElementById('chaosBadge');
+const polyDiag = document.getElementById('polygonDiagnosis');
+if(chaosBadge) chaosBadge.textContent = カオス: ${res.chaosIndex};
+if(polyDiag) polyDiag.textContent = 重心偏り: ${res.gravityBias} (${res.gravityBias < 0.238 ? '均衡' : '偏重'});
+​const dnaText = document.getElementById('dnaSequenceText');
+const coupBadge = document.getElementById('coupAlertBadge');
+const dramaCont = document.getElementById('lineDramaContainer');
+if(dnaText) dnaText.textContent = res.raceDna;
+if(coupBadge) coupBadge.textContent = 下剋上:${res.coupScore};
+if(dramaCont) dramaCont.innerHTML = res.dramaDetails.map(d => <div>${d}</div>).join('');
+}
+​function populateRaceSelector() {
+const sel = document.getElementById('raceSelector');
+if(!sel) return;
+sel.innerHTML = allRaces.map((r, i) => <option value="${i}">[${i + 1}/${allRaces.length}] ${r.id}</option>).join('');
+sel.value = currentRaceIdx;
+}

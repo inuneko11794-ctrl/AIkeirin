@@ -1,0 +1,42 @@
+​// ファイル読込
+document.getElementById('dataFileInput').addEventListener('change', ev => {
+const file = ev.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = e => {
+Papa.parse(e.target.result, {
+header: true, skipEmptyLines: true,
+complete: r => {
+const rows = r.data;
+if (!rows.length) return;
+const cols = Object.keys(rows[0]);
+const idCol = cols.find(c => /レースID|ID|レース/i.test(c));
+const carCol = cols.find(c => /車番|car/i.test(c)) || cols[0];
+const markCol = cols.find(c => /変換|印|mark/i.test(c)) || cols[1];
+const lineCol = cols.find(c => /ライン|並び/i.test(c));
+const payCol = cols.find(c => /3連単|三連単|配当/i.test(c));
+const grouped = [];
+let cur = null, lastId = null;
+rows.forEach(row => {
+const car = parseInt(row[carCol], 10);
+if (isNaN(car)) return;
+const rId = idCol ? row[idCol] : null;
+if (idCol ? rId !== lastId : (car === 1 || !cur)) {
+if (cur && cur.entries.length >= 5) grouped.push(cur);
+lastId = rId;
+const rawL = lineCol ? String(row[lineCol] || '') : '';
+cur = { id: rId || RACE-${grouped.length + 1}, rawFormation: rawL, lines: parseFormationString(rawL, []), payout: payCol ? Number(String(row[payCol]).replace(/[^\d]/g, '')) || null : null, entries: [] };
+}
+cur.entries.push({ car, name: 選手${car}, rawMark: row[markCol] || '無' });
+});
+if (cur && cur.entries.length >= 5) grouped.push(cur);
+if (grouped.length) {
+allRaces = grouped; currentRaceIdx = 0;
+populateRaceSelector(); renderCurrentRace(); refreshStockList();
+showToast(✅ ${grouped.length}レース読み込みました！);
+}
+}
+});
+};
+reader.readAsText(file, 'UTF-8');
+});

@@ -1,0 +1,34 @@
+allRaces.push(race);
+currentRaceIdx = allRaces.length - 1;
+document.getElementById('builderRaceTitle').value = '';
+document.getElementById('builderLineInput').value = '';
+document.getElementById('builderPayoutInput').value = '';
+renderBuilderRows(); populateRaceSelector(); renderCurrentRace(); refreshStockList();
+showToast(✅ 「${race.id}」を登録しました！);
+});
+}
+​function refreshStockList() {
+const race = allRaces[currentRaceIdx];
+if (race) {
+const targetName = document.getElementById('editingTargetRaceName');
+const rOrder = document.getElementById('lateResultOrderInput');
+const rPay = document.getElementById('lateResultPayoutInput');
+if(targetName) targetName.textContent = race.id;
+if(rOrder) rOrder.value = race.resultOrder || '';
+if(rPay) rPay.value = race.payout || '';
+}
+const listEl = document.getElementById('verticalRaceStockList');
+if(!listEl) return;
+listEl.innerHTML = allRaces.slice(-30).map((r, idx) => {
+const realIdx = Math.max(0, allRaces.length - 30) + idx;
+const done = r.payout || r.resultOrder;
+return <div data-idx="${realIdx}" class="stock-item cursor-pointer flex justify-between items-center px-2 py-1 rounded border text-xs ${realIdx === currentRaceIdx ? 'bg-cyan-500/20 border-cyan-400' : 'bg-slate-900 border-slate-800'}"> <span class="truncate max-w-[120px]">${r.id}</span> <span class="text-[10px] font-mono ${done ? 'text-emerald-300' : 'text-amber-300'}">${done ? (r.payout ? r.payout + '円' : '済') : '結果待ち'}</span> </div>;
+}).join('');
+listEl.querySelectorAll('.stock-item').forEach(el => {
+el.addEventListener('click', () => {
+currentRaceIdx = parseInt(el.dataset.idx, 10);
+document.getElementById('raceSelector').value = currentRaceIdx;
+renderCurrentRace(); refreshStockList();
+});
+});
+}

@@ -1,0 +1,61 @@
+let coupScore = 0, abandonScore = 0;
+const dramaDetails = [];
+lineSummaryList.forEach(l => {
+if (!l.isTanki && l.members.length >= 2) {
+const s1 = getScore(l.members[0].convertedMark);
+const s2 = getScore(l.members[1].convertedMark);
+const str = l.members.map(m => ${m.car}(${m.convertedMark})).join('-');
+if (s2 > s1) {
+coupScore += +(s2 - s1).toFixed(1);
+dramaDetails.push(🔥 ${l.label} 下剋上気配 [${str}]);
+} else if (s1 - s2 >= 2.0) {
+abandonScore += +(s1 - s2).toFixed(1);
+dramaDetails.push(💨 ${l.label} ちぎれ注意 [${str}]);
+} else {
+dramaDetails.push(🛡️ ${l.label} 安定結束 [${str}]);
+}
+}
+});
+​const totalW = scores.reduce((a, b) => a + b, 0) || 1;
+let gx = 0, gy = 0;
+entries.forEach((e, i) => {
+const ang = (2 * Math.PI * i / numCars) - (Math.PI / 2);
+gx += scores[i] * Math.cos(ang);
+gy += scores[i] * Math.sin(ang);
+});
+const gravityBias = Math.sqrt((gx / totalW)  2 + (gy / totalW)  2);
+​return {
+entries, scores, lineSummaryList,
+dissonance: +dissonance.toFixed(2),
+chaosIndex: +chaosIndex.toFixed(2),
+raceDna,
+coupScore: +coupScore.toFixed(2),
+abandonScore: +abandonScore.toFixed(2),
+dramaDetails,
+gravityBias: +gravityBias.toFixed(3)
+};
+}
+​function parseFlexibleRaceText(rawText) {
+const text = rawText.trim();
+if (!text) return null;
+const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+let title = '即席コピペ診断レース';
+let rawFormation = '';
+let parsedLines = [];
+const entryMap = {};
+​lines.forEach((line, idx) => {
+if (idx === 0 && !/^[1-9\s|｜]/.test(line) && !line.includes('[')) {
+title = line.replace(/^[#【■●◆\s]+|[】\s]+$/g, '').slice(0, 28) || title;
+}
+const brackets = line.match(/[[^]]+]/g);
+if (brackets && brackets.length >= 2) {
+rawFormation = brackets.join(' ');
+parsedLines = brackets.map(b => b.match(/\d/g)).filter(Boolean);
+} else if (/並び|ライン|隊列/.test(line)) {
+const rhs = line.split(/[：:|｜]/).slice(1).join(' ') || line;
+const grps = rhs.split(/[\s-/・,]+/).map(g => g.match(/\d/g)).filter(Boolean);
+if (grps.length > 0) {
+rawFormation = grps.map(g => [${g.join(' ')}]).join(' ');
+parsedLines = grps;
+}
+}

@@ -1,0 +1,36 @@
+​const res = analyzeRace(parsed);
+const prob = predictUpset(extractFeatures(res)) * 100;
+const meta = getUpsetJudgeMeta(prob);
+if(pctEl) pctEl.textContent = ${prob.toFixed(1)}%;
+if(headEl) { headEl.textContent = meta.headline; headEl.className = text-xs font-bold ${meta.color}; }
+if(metaEl) metaEl.textContent = ${parsed.entries.length}車立 OK;
+if(detailEl) detailEl.textContent = 不協和:${res.dissonance} / カオス:${res.chaosIndex} / 下剋上:${res.coupScore} / 重心:${res.gravityBias};
+if(btn) btn.disabled = false;
+});
+}
+​const clearBtn = document.getElementById('clearInstantPasteBtn');
+if(clearBtn && pasteEl) {
+clearBtn.addEventListener('click', () => { pasteEl.value = ''; pasteEl.dispatchEvent(new Event('input')); });
+}
+​const importBtn = document.getElementById('importInstantPasteBtn');
+if(importBtn) {
+importBtn.addEventListener('click', () => {
+if (!latestInstantRace) return;
+allRaces.push(JSON.parse(JSON.stringify(latestInstantRace)));
+currentRaceIdx = allRaces.length - 1;
+populateRaceSelector(); renderCurrentRace(); refreshStockList();
+showToast(✅ 「${latestInstantRace.id}」を追加しました！);
+});
+}
+​// 手動ビルダー
+function renderBuilderRows() {
+const countEl = document.getElementById('builderCarCount');
+if(!countEl) return;
+const count = parseInt(countEl.value, 10) || 9;
+const marks = ['無', '本命', '対抗', '単穴', '連下', '注'];
+let html = '';
+for (let c = 1; c <= count; c++) {
+const bg = CAR_COLORS[(c - 1) % 9];
+const fg = [1, 5].includes(c) ? '#0f172a' : '#fff';
+html += <tr> <td class="p-1.5"><span class="inline-flex items-center justify-center w-5 h-5 rounded font-bold" style="background:${bg};color:${fg}">${c}</span></td> <td class="p-1.5"><input type="text" class="b-name w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-white" value="選手${c}"></td> <td class="p-1.5"><select class="b-mark w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-amber-200">${marks.map(m => <option value="${m}">${m}</option>).join('')}</select></td> </tr>;
+}

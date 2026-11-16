@@ -1,0 +1,39 @@
+​<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div class="max-h-48 overflow-y-auto border border-slate-800 rounded-xl p-2 bg-slate-950/60">
+<table class="w-full text-left text-xs">
+<tbody id="builderRowsBody" class="divide-y divide-slate-900"></tbody>
+</table>
+</div>
+<div class="space-y-3 flex flex-col justify-between">
+<div>
+<label class="block text-[10px] font-mono-code text-slate-400 mb-1">結果配当 (任意)</label>
+<input type="number" id="builderPayoutInput" placeholder="例: 15400" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono-code" />
+</div>
+<button id="addRaceToQueueBtn" class="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition">＋ このレースをリストに追加して解析</button>
+</div>
+</div>
+</section>
+​<!-- スクリプト：コアエンジン ＆ UI制御 -->
+<script>
+const EMBEDDED_BASELINE = {
+dissonanceMean: 4.10, chaosMean: 6.55, coupRate: 0.36, biasMean: 0.238,
+weights: [0.58, 0.49, 0.28, 0.62, 0.46], bias: -0.48
+};
+​const CAR_COLORS = ['#ffffff', '#1e293b', '#ef4444', '#3b82f6', '#eab308', '#22c55e', '#f97316', '#ec4899', '#a855f7'];
+const CIRCLED_NUMS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨'];
+​const CONVERTED_SCORES = {
+'◎': 5.0, '⑳': 4.5, '◯': 4.0, '●': 4.0, '▲': 3.0, '△': 2.5,
+'✖': 1.8, 'T': 2.0, '☆': 1.2, '★': 0.9, '星': 0.6, '無': 0.2
+};
+​function getScore(mark) { return CONVERTED_SCORES[String(mark).trim()] ?? 0.5; }
+​function normalizeRawMark(raw) {
+if (!raw) return '無';
+const s = String(raw).trim();
+if (['本命', '◎', '20', '⑳'].includes(s)) return '◎';
+if (['対抗', '◯', '○', '●'].includes(s)) return '◯';
+if (['単穴', '▲'].includes(s)) return '▲';
+if (['連下', '△'].includes(s)) return '△';
+if (['注', '✕', '×', '✖'].includes(s)) return '✕';
+if (['-', '－', '無', ''].includes(s)) return '無';
+return s;
+}

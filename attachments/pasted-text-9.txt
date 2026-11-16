@@ -1,0 +1,43 @@
+const members = cars.map((c, idx) => {
+carMetaMap[c] = { lineLabel: label, isTanki: false, rawMark: rawMarks[idx], convertedMark: convMarks[idx] };
+return { car: c, name: carToEntry[c].name, rawMark: rawMarks[idx], convertedMark: convMarks[idx] };
+});
+lineSummaryList.push({ label, isTanki: false, members });
+});
+​race.entries.forEach(e => {
+if (!carMetaMap[e.car]) {
+const rawM = normalizeRawMark(e.rawMark ?? e.mark);
+carMetaMap[e.car] = { lineLabel: '単騎', isTanki: true, rawMark: rawM, convertedMark: 'T' };
+}
+});
+​return { carMetaMap, lineSummaryList };
+}
+​function analyzeRace(race) {
+const { carMetaMap, lineSummaryList } = applyLineAndMarkRules(race);
+const entries = [...race.entries].sort((a, b) => a.car - b.car).map(e => ({
+...e,
+rawMark: carMetaMap[e.car].rawMark,
+mark: carMetaMap[e.car].convertedMark,
+lineLabel: carMetaMap[e.car].lineLabel,
+isTanki: carMetaMap[e.car].isTanki
+}));
+​const scores = entries.map(e => getScore(e.mark));
+const numCars = entries.length;
+​const semitones = [0, 2, 4, 5, 7, 9, 11, 12, 14];
+const topIdx = scores.map((s, i) => ({ s, i })).sort((a, b) => b.s - a.s).slice(0, 3).map(x => x.i);
+const notes = topIdx.map(i => semitones[(entries[i].car - 1) % 9]).sort((a, b) => a - b);
+let dissonance = 0;
+for (let j = 0; j < notes.length - 1; j++) {
+const iv = notes[j + 1] - notes[j];
+dissonance += [1, 6, 11].includes(iv) ? 3.0 : [2, 10].includes(iv) ? 1.5 : 0.5;
+}
+​let tanKiCount = 0;
+const masses = lineSummaryList.map(l => {
+if (l.isTanki) tanKiCount++;
+return l.members.reduce((sum, m) => sum + getScore(m.convertedMark), 0);
+});
+const meanM = masses.reduce((a, b) => a + b, 0) / (masses.length || 1);
+const stdM = Math.sqrt(masses.reduce((a, b) => a + Math.pow(b - meanM, 2), 0) / (masses.length || 1));
+const chaosIndex = (10.0 / (stdM + 1.0)) + (tanKiCount * 1.5);
+​const lineShape = lineSummaryList.filter(l => !l.isTanki).map(l => l.members.length).join('') + (tanKiCount > 0 ? T${tanKiCount} : '');
+const raceDna = ${numCars}C-L${lineShape}-[${entries.map(e => e.mark).join('')}];

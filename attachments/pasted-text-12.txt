@@ -1,0 +1,38 @@
+function extractFeatures(res) {
+const f1 = Math.min(1.5, res.dissonance / (EMBEDDED_BASELINE.dissonanceMean * 1.5));
+const f2 = Math.min(1.5, res.chaosIndex / (EMBEDDED_BASELINE.chaosMean * 1.8));
+const f3 = 0.65;
+const f4 = Math.min(1.5, (res.coupScore + res.abandonScore) / 4.5);
+const f5 = Math.max(0, 1.0 - (res.gravityBias / (EMBEDDED_BASELINE.biasMean * 2.4)));
+return [f1, f2, f3, f4, f5];
+}
+​function predictUpset(features) {
+let z = aiModel.bias;
+for (let i = 0; i < 5; i++) z += features[i] * aiModel.weights[i];
+return 1 / (1 + Math.exp(-z));
+}
+​function getUpsetJudgeMeta(prob) {
+if (prob >= 65) return { headline: '🔥 かなり荒れそう！（万車券ゾーン）', color: 'text-rose-400' };
+if (prob >= 52) return { headline: '⚡ やや波乱気配（中穴〜万車券警戒）', color: 'text-amber-300' };
+if (prob >= 40) return { headline: '⚖️ 互角・標準ペース', color: 'text-cyan-300' };
+return { headline: '🛡️ 堅実・荒れにくそう（本命サイド）', color: 'text-emerald-300' };
+}
+​// 即席テキスト入力
+let latestInstantRace = null;
+const pasteEl = document.getElementById('instantPasteInput');
+if(pasteEl) {
+pasteEl.addEventListener('input', () => {
+const parsed = parseFlexibleRaceText(pasteEl.value);
+latestInstantRace = parsed;
+const pctEl = document.getElementById('instantRadarPercent');
+const headEl = document.getElementById('instantRadarHeadline');
+const detailEl = document.getElementById('instantRadarDetail');
+const metaEl = document.getElementById('instantParsedMeta');
+const btn = document.getElementById('importInstantPasteBtn');
+​if (!parsed) {
+if(pctEl) pctEl.textContent = '-- %';
+if(headEl) headEl.textContent = pasteEl.value.trim() ? '5車以上の車番・印を認識中...' : 'テキスト貼付で即判定';
+if(metaEl) metaEl.textContent = '待機中';
+if(btn) btn.disabled = true;
+return;
+}
