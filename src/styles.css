@@ -39,6 +39,9 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+  input[type="date"] {
+    color-scheme: dark;
+  }
   button:focus-visible,
   a:focus-visible,
   input:focus-visible,

@@ -10,8 +10,11 @@ export type Race = {
   lines: string[][];
   resultOrder: string;
   payout: number | null;
+  winPayout?: number | null;
+  exactaPayout?: number | null;
   entries: Entry[];
   girls: boolean;
+  heldOn?: string;
 };
 
 export type Member = {

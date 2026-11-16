@@ -8,6 +8,7 @@ import {
   Save,
   Shuffle,
   Target,
+  Trash2,
 } from "lucide-react";
 import {
   analyzeRace,
@@ -20,7 +21,9 @@ import {
   verdictOf,
 } from "@/lib/keirin/engine";
 import { CosmosPanel } from "@/components/cosmos";
-import { learnFromResult, emptyLedger, type Ledger } from "@/lib/keirin/points";
+import { Record, Slip, UpsetBoard } from "@/components/slip";
+import { upsetBoard } from "@/lib/keirin/tickets";
+import { learnFromResult, learnFromRaces, emptyLedger, type Ledger } from "@/lib/keirin/points";
 import { carFace, PAYOUT_TIERS } from "@/lib/keirin/visual";
 import { parseMarkdownRaces } from "@/lib/keirin/parse";
 import { loadState, saveState } from "@/lib/keirin/store";
@@ -60,6 +63,10 @@ export function Lab() {
   const [notice, setNotice] = useState("");
   const [order, setOrder] = useState("");
   const [payout, setPayout] = useState("");
+  const [winPay, setWinPay] = useState("");
+  const [exPay, setExPay] = useState("");
+  const [heldOn, setHeldOn] = useState("");
+  const [meetDate, setMeetDate] = useState("");
   const { hit, mark } = usePress();
   const fileRef = useRef<HTMLInputElement>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -70,6 +77,7 @@ export function Lab() {
     setRaces(saved.races);
     setModel(saved.model);
     setLedger(saved.ledger);
+    setMeetDate(saved.races.find((r) => r.heldOn)?.heldOn ?? "");
     setIndex(saved.races.length ? Math.min(saved.index, saved.races.length - 1) : 0);
     setHydrated(true);
   }, []);
@@ -87,7 +95,10 @@ export function Lab() {
   useEffect(() => {
     setOrder(race?.resultOrder ?? "");
     setPayout(race?.payout ? String(race.payout) : "");
-  }, [race?.id, race?.resultOrder, race?.payout]);
+    setWinPay(race?.winPayout ? String(race.winPayout) : "");
+    setExPay(race?.exactaPayout ? String(race.exactaPayout) : "");
+    setHeldOn(race?.heldOn ?? "");
+  }, [index, race?.id]);
 
   const toast = (msg: string) => {
     setNotice(msg);
@@ -95,14 +106,22 @@ export function Lab() {
   };
 
   const ingest = (text: string, source: string) => {
-    const next = parseMarkdownRaces(text);
+    const next = parseMarkdownRaces(text).map((race) => ({
+      ...race,
+      heldOn: race.heldOn || meetDate,
+    }));
     if (!next.length) {
       toast(`${source}からレースを読めませんでした`);
       return;
     }
     setRaces(next);
     setIndex(0);
-    toast(`${next.length}レースを読み込みました`);
+    const rough = upsetBoard(next, model, ledger).filter((row) => row.prob >= 65);
+    toast(
+      rough.length
+        ? `${next.length}レースを読み込みました。かなり荒れそうなのは${rough.length}レースです`
+        : `${next.length}レースを読み込みました。65%以上の荒れはありません`,
+    );
   };
 
   const onFile = async (file: File | undefined) => {
@@ -115,11 +134,57 @@ export function Lab() {
     setIndex((i) => (i + dir + races.length) % races.length);
   };
 
+  const writeRace = (at: number, patch: Partial<Race>) => {
+    setRaces((prev) => prev.map((r, i) => (i === at ? { ...r, ...patch } : r)));
+  };
+
+  const removeRace = () => {
+    if (!race) return;
+    const name = race.id;
+    setRaces((prev) => prev.filter((_, i) => i !== index));
+    setIndex((cur) => Math.max(0, Math.min(cur, races.length - 2)));
+    toast(`「${name}」を削除しました`);
+  };
+
+  const learnAll = () => {
+    const merged = races.map((r, i) =>
+      i === index
+        ? {
+            ...r,
+            resultOrder: order.trim(),
+            payout: payout.trim() ? Number(payout) : null,
+            winPayout: winPay.trim() ? Number(winPay) : null,
+            exactaPayout: exPay.trim() ? Number(exPay) : null,
+            heldOn,
+          }
+        : r,
+    );
+    setRaces(merged);
+    const done = merged.filter((r) => r.resultOrder.trim());
+    if (!done.length) {
+      toast("着順を数字で入れてから押してください");
+      return;
+    }
+    const next = learnFromRaces(done, ledger);
+    setLedger(next);
+    const labeled = merged.filter((r) => r.payout && r.payout > 0);
+    if (labeled.length) setModel(trainOnRaces(merged, model));
+    toast(next.batchLearned ? `学習完了しました（${next.batchLearned}レース）` : "着順を数字で入れてから押してください");
+  };
+
   const saveResult = () => {
     if (!race) return;
     const resultOrder = order.trim();
     const nextPayout = payout.trim() ? Number(payout) : null;
-    setRaces((prev) => prev.map((r, i) => (i === index ? { ...r, resultOrder, payout: nextPayout } : r)));
+    const nextWin = winPay.trim() ? Number(winPay) : null;
+    const nextExacta = exPay.trim() ? Number(exPay) : null;
+    setRaces((prev) =>
+      prev.map((r, i) =>
+        i === index
+          ? { ...r, resultOrder, payout: nextPayout, winPayout: nextWin, exactaPayout: nextExacta, heldOn }
+          : r,
+      ),
+    );
     if (!resultOrder) {
       toast(`「${race.id}」の結果を保存しました`);
       return;
@@ -130,11 +195,12 @@ export function Lab() {
   };
 
   const exportCsv = () => {
-    const rows = [["レース", "車番", "選手", "元印", "変換印", "ライン", "並び", "着順", "配当"]];
+    const rows = [["レース", "開催日", "車番", "選手", "元印", "変換印", "ライン", "並び", "着順", "配当"]];
     races.forEach((r) => {
       analyzeRace(r).entries.forEach((e) => {
         rows.push([
           r.id,
+          r.heldOn ?? "",
           String(e.car),
           e.name,
           e.rawMark,
@@ -156,6 +222,8 @@ export function Lab() {
   const toneClass =
     verdict.tone === "hot" ? "text-hot" : verdict.tone === "warm" ? "text-warm" : verdict.tone === "cool" ? "text-cool" : "text-fg";
   const press = (id: string) => `pressable ${hit === id ? "is-hit" : ""}`;
+  const resultCount = races.filter((r) => r.resultOrder.trim()).length;
+  const learnedCount = ledger.batchLearned ?? 0;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-16 pt-6 sm:px-6">
@@ -202,6 +270,20 @@ export function Lab() {
             川崎サンプル
           </button>
         </div>
+        <label className="mt-3 block text-xs text-faint">
+          開催日（読み込んだレース全部）
+          <input
+            type="date"
+            value={meetDate}
+            onChange={(e) => {
+              const value = e.target.value;
+              setMeetDate(value);
+              setRaces((prev) => prev.map((race) => ({ ...race, heldOn: value })));
+              setHeldOn(value);
+            }}
+            className="mt-1 h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
+          />
+        </label>
       </section>
 
       {notice ? (
@@ -209,6 +291,8 @@ export function Lab() {
           {notice}
         </p>
       ) : null}
+
+      <UpsetBoard races={races} model={model} ledger={ledger} onPick={setIndex} />
 
       <section className="mt-4 flex min-h-11 items-center gap-1 rounded-[20px] border border-line bg-elevated p-1">
         <button
@@ -275,7 +359,9 @@ export function Lab() {
             <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-subtle">
               <div className="h-full bg-accent" style={{ width: `${Math.min(100, Math.max(0, prob))}%` }} />
             </div>
-            <p className="mt-3 font-mono text-xs text-faint">並び {race.rawFormation}</p>
+            <p className="mt-3 font-mono text-xs text-faint">
+              {race.heldOn ? `${race.heldOn} ` : ""}並び {race.rawFormation}
+            </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div>
                 <p className="font-mono text-sm tabular-nums text-fg">不協和度 {analysis.dissonance}</p>
@@ -291,6 +377,8 @@ export function Lab() {
               </div>
             </div>
           </section>
+
+          <Slip analysis={analysis} prob={prob} order={order} />
 
           <section className="mt-4 rounded-[28px] border border-line bg-elevated p-4">
             <div className="mb-3 flex items-baseline justify-between gap-3">
@@ -467,44 +555,137 @@ export function Lab() {
       <section className="mt-4 rounded-[28px] border border-line bg-elevated p-4">
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-medium text-fg">登録レース</h2>
-          <span className="font-mono text-xs text-faint">{races.length}</span>
+          <span className="font-mono text-xs text-faint">
+            結果 {races.filter((r) => r.resultOrder.trim()).length}/{races.length}
+          </span>
         </div>
         {races.length ? (
-          <div className="mt-3 grid max-h-40 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+          <div className="mt-3 flex max-h-80 flex-col gap-2 overflow-y-auto">
             {races.map((r, i) => {
-              const done = Boolean(r.payout || r.resultOrder);
+              const done = Boolean(r.payout || r.resultOrder.trim());
               return (
-                <button
+                <div
                   key={`${r.id}-${i}`}
-                  type="button"
-                  className={`${press(`stock-${i}`)} flex min-h-11 items-center justify-between gap-2 rounded-xl border px-2 text-left text-xs ${
-                    i === index ? "border-line-strong bg-subtle text-fg" : "border-line text-muted"
-                  }`}
-                  onClick={() => {
-                    mark(`stock-${i}`);
-                    setIndex(i);
-                  }}
+                  className={`rounded-xl border px-2 py-2 ${i === index ? "border-line-strong bg-subtle" : "border-line"}`}
                 >
-                  <span className="truncate">{r.id}</span>
-                  <span className="shrink-0 font-mono">{done ? (r.payout ? `${r.payout}円` : "済") : "結果待ち"}</span>
-                </button>
+                  <button
+                    type="button"
+                    className={`${press(`stock-${i}`)} flex min-h-11 w-full items-center justify-between gap-2 text-left text-xs ${
+                      i === index ? "text-fg" : "text-muted"
+                    }`}
+                    onClick={() => {
+                      mark(`stock-${i}`);
+                      setIndex(i);
+                    }}
+                  >
+                    <span className="truncate">{r.heldOn ? `${r.heldOn.slice(5)} ` : ""}{r.id}</span>
+                    <span className="shrink-0 font-mono">{done ? (r.payout ? `${r.payout}円` : "済") : "結果待ち"}</span>
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={i === index ? order : r.resultOrder}
+                      onChange={(e) => {
+                        writeRace(i, { resultOrder: e.target.value });
+                        if (i === index) setOrder(e.target.value);
+                      }}
+                      placeholder="着順 4-1-7"
+                      aria-label={`${r.id}の着順`}
+                      className="h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
+                    />
+                    <input
+                      value={i === index ? payout : r.payout ? String(r.payout) : ""}
+                      onChange={(e) => {
+                        const next = e.target.value.trim() ? Number(e.target.value) : null;
+                        writeRace(i, { payout: next });
+                        if (i === index) setPayout(e.target.value);
+                      }}
+                      inputMode="numeric"
+                      placeholder="3連単配当"
+                      aria-label={`${r.id}の配当`}
+                      className="h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
+                    />
+                  </div>
+                </div>
               );
             })}
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted">リストは空です。</p>
         )}
+        <button
+          type="button"
+          className={`${press("learn-all")} mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-accent text-base font-medium text-accent-fg`}
+          onClick={() => {
+            mark("learn-all");
+            learnAll();
+          }}
+        >
+          <GraduationCap size={18} />
+          一括で学習
+        </button>
+        <p className={`mt-2 text-center text-sm ${learnedCount > 0 && learnedCount === resultCount ? "text-gold" : "text-muted"}`}>
+          {resultCount === 0
+            ? "着順を入れると学習できます"
+            : learnedCount === 0
+              ? `学習済み 0/${resultCount}`
+              : learnedCount >= resultCount
+                ? `学習完了しました（${learnedCount}レース）`
+                : `学習済み ${learnedCount}/${resultCount}`}
+        </p>
       </section>
+
+      {races.length ? <Record races={races} model={model} ledger={ledger} /> : null}
 
       <section className="mt-4 rounded-[28px] border border-line bg-elevated p-4">
         <h2 className="text-sm font-medium text-fg">結果登録</h2>
         <p className="mt-1 text-xs text-faint">対象 {race ? race.id : "なし"}</p>
         <label className="mt-3 block text-xs text-faint">
+          開催日
+          <input
+            type="date"
+            value={heldOn}
+            onChange={(e) => {
+              setHeldOn(e.target.value);
+              writeRace(index, { heldOn: e.target.value });
+            }}
+            className="mt-1 h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
+          />
+        </label>
+        <label className="mt-3 block text-xs text-faint">
           着順
           <input
             value={order}
-            onChange={(e) => setOrder(e.target.value)}
+            onChange={(e) => {
+              setOrder(e.target.value);
+              writeRace(index, { resultOrder: e.target.value });
+            }}
             placeholder="4-1-7"
+            className="mt-1 h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
+          />
+        </label>
+        <label className="mt-3 block text-xs text-faint">
+          単勝配当（的中した時だけ・任意）
+          <input
+            value={winPay}
+            onChange={(e) => {
+              setWinPay(e.target.value);
+              writeRace(index, { winPayout: e.target.value.trim() ? Number(e.target.value) : null });
+            }}
+            inputMode="numeric"
+            placeholder="430"
+            className="mt-1 h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
+          />
+        </label>
+        <label className="mt-3 block text-xs text-faint">
+          2連単配当（的中した時だけ・任意）
+          <input
+            value={exPay}
+            onChange={(e) => {
+              setExPay(e.target.value);
+              writeRace(index, { exactaPayout: e.target.value.trim() ? Number(e.target.value) : null });
+            }}
+            inputMode="numeric"
+            placeholder="1860"
             className="mt-1 h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
           />
         </label>
@@ -512,7 +693,10 @@ export function Lab() {
           3連単配当（円）
           <input
             value={payout}
-            onChange={(e) => setPayout(e.target.value)}
+            onChange={(e) => {
+              setPayout(e.target.value);
+              writeRace(index, { payout: e.target.value.trim() ? Number(e.target.value) : null });
+            }}
             inputMode="numeric"
             placeholder="12500"
             className="mt-1 h-11 w-full rounded-xl border border-line bg-bg px-3 font-mono text-sm text-fg"
@@ -529,6 +713,17 @@ export function Lab() {
           >
             <Save size={16} />
             この結果を保存
+          </button>
+          <button
+            type="button"
+            className={`${press("del")} flex min-h-11 items-center justify-center gap-1 rounded-xl border border-line text-sm text-hot`}
+            onClick={() => {
+              mark("del");
+              removeRace();
+            }}
+          >
+            <Trash2 size={16} />
+            このレースを削除
           </button>
           <button
             type="button"

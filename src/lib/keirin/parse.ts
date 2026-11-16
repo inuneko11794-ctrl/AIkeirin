@@ -1,6 +1,12 @@
 import { parseFormationString } from "./engine";
 import type { Race } from "./types";
 
+function readHeldOn(info: string) {
+  const found = info.match(/(20\d{2})\s*[./年\-]\s*(\d{1,2})\s*[./月\-]\s*(\d{1,2})/);
+  if (!found) return "";
+  return `${found[1]}-${found[2].padStart(2, "0")}-${found[3].padStart(2, "0")}`;
+}
+
 export function parseMarkdownRaces(mdText: string): Race[] {
   const text = mdText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const sections = text.split(/^#\s*競輪レースデータ[：:]/m).slice(1);
@@ -35,6 +41,8 @@ export function parseMarkdownRaces(mdText: string): Race[] {
       entryMap.set(car, { car, name: cells[1] || `選手${car}`, rawMark: cells[6] || "-" });
     });
 
+    const info = sec.split(/##\s*出走表/)[0] ?? sec;
+    const heldOn = readHeldOn(info);
     const entries = [...entryMap.values()].sort((a, b) => a.car - b.car);
     if (entries.length < 5) return;
     const lines = rawFormation ? parseFormationString(rawFormation, entries) : entries.map((e) => [String(e.car)]);
@@ -46,6 +54,7 @@ export function parseMarkdownRaces(mdText: string): Race[] {
       payout: null,
       entries,
       girls,
+      heldOn,
     });
   });
 

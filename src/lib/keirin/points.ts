@@ -21,12 +21,13 @@ export type Ledger = {
   cars: Record<string, number>;
   applied: Record<string, AppliedDelta[]>;
   last: { raceId: string; predicted: string; actual: string; gap: number; moves: PointMove[] } | null;
+  batchLearned: number;
 };
 
 const STEP = 0.12;
 
 export function emptyLedger(): Ledger {
-  return { marks: {}, roles: {}, lines: {}, cars: {}, applied: {}, last: null };
+  return { marks: {}, roles: {}, lines: {}, cars: {}, applied: {}, last: null, batchLearned: 0 };
 }
 
 export function normalizeLedger(value: Partial<Ledger> | null | undefined): Ledger {
@@ -37,6 +38,7 @@ export function normalizeLedger(value: Partial<Ledger> | null | undefined): Ledg
     cars: value?.cars ?? {},
     applied: value?.applied ?? {},
     last: value?.last ?? null,
+    batchLearned: value?.batchLearned ?? 0,
   };
 }
 
@@ -87,6 +89,7 @@ export function rankRace(race: Race, ledger: Ledger) {
 
 function parseOrder(order: string) {
   return order
+    .normalize("NFKC")
     .split(/[^0-9]+/)
     .map((n) => parseInt(n, 10))
     .filter((n) => n >= 1 && n <= 9);
@@ -104,14 +107,14 @@ function undo(ledger: Ledger, raceId: string) {
 }
 
 export function learnFromResult(race: Race, order: string, source: Ledger) {
-  const ledger = normalizeLedger(structuredClone(source));
-  undo(ledger, race.id);
   const actualCars = parseOrder(order);
+  const ledger = normalizeLedger(structuredClone(source));
+  if (!actualCars.length) {
+    return { ledger, predicted: "", actual: "", gap: 0, moves: [] as PointMove[] };
+  }
+  undo(ledger, race.id);
   const { atoms } = rankRace(race, ledger);
   const predicted = atoms.map((a) => a.car).join("-");
-  if (!actualCars.length) {
-    return { ledger, predicted, actual: "", gap: 0, moves: [] as PointMove[] };
-  }
 
   const actualRank = new Map<number, number>();
   actualCars.forEach((car, i) => {
@@ -174,4 +177,25 @@ export function learnFromResult(race: Race, order: string, source: Ledger) {
   const actual = actualCars.join("-");
   ledger.last = { raceId: race.id, predicted, actual, gap, moves: moves.slice(0, 8) };
   return { ledger, predicted, actual, gap, moves };
+}
+
+export function learnFromRaces(races: Race[], source: Ledger) {
+  const base = normalizeLedger(structuredClone(source));
+  const seen = new Map<string, number>();
+  const keyed = races.map((race) => {
+    const n = seen.get(race.id) ?? 0;
+    seen.set(race.id, n + 1);
+    if (n === 0) return race;
+    return { ...race, id: `${race.id}#${n}` };
+  });
+  keyed.forEach((race) => undo(base, race.id));
+  let ledger = base;
+  let count = 0;
+  keyed.forEach((race) => {
+    if (!parseOrder(race.resultOrder).length) return;
+    count += 1;
+    ledger = learnFromResult(race, race.resultOrder, ledger).ledger;
+  });
+  ledger.batchLearned = count;
+  return ledger;
 }
